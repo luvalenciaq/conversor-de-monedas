@@ -1,5 +1,8 @@
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -19,10 +22,25 @@ public class ConexionApi {
             HttpResponse<String>    response = client
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
-            return new Gson().fromJson(response.body(), RespuestaConversion.class);
-        } catch (Exception e) {
-            throw new RuntimeException("No se pudo realizar la conversión");
-        }
+            String json = response.body();
+            JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
+            String resultado = jsonObject.get("result").getAsString();
 
+            if (!resultado.equals("success")) {
+                String errorType = jsonObject.get("error-type").getAsString();
+                throw new IllegalStateException("Error en respuesta de la API: " + errorType);
+            }
+            return new Gson().fromJson(json, RespuestaConversion.class);
+
+        } catch (IOException e) {
+            System.err.println("Error de conexión o lectura de datos: " + e.getMessage());
+            throw new RuntimeException("No se pudo conectar con el servicio de conversión", e);
+
+        } catch (InterruptedException e) {
+            System.err.println("La solicitud fue interrumpida: " + e.getMessage());
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("La operación fue interrumpida", e);
+
+        }
     }
 }
